@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Huddle Board</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        .container {
+            max-width: 960px;
+        }
+        .add-task-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 24px;
+            background: none;
+            border: none;
+            z-index: 9999;
+            color: #fff;
+        }
+        .card {
+            border: 1px;
+            border-radius: 0;
+            transition: transform 0.3s;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .card:hover {
+            transform: translateY(-10px);
+        }
+        .todo {
+            background-color: #9fa3f5;
+        }
+        .in-progress {
+            background-color: #f5f29f;
+        }
+        .done {
+            background-color: #a6f59f;
+        }
+        .card-title {
+            font-weight: bold;
+        }
+        .badge {
+            padding: 5px 10px;
+        }
+        .btn-icon {
+            background: none;
+            border: none;
+            color: #007bff;
+            padding: 0;
+            margin: 0;
+            font-size: 16px;
+            transition: color 0.3s;
+        }
+        .btn-icon:hover {
+            color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Huddle Board</h1>
+
+        <button type="button" id="expand-add-task" class="btn btn-primary add-task-btn" title="Add Task">
+            <i class="fas fa-plus"></i>
+        </button>
+
+        <div id="task-container" class="card-columns">
+            <!-- Tasks will be dynamically added here -->
+        </div>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div class="modal fade" id="addTaskModal" tabindex="-1" role="dialog" aria-labelledby="addTaskModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addTaskModalLabel">Add Task</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-task-form-inner">
+                        <div class="form-group">
+                            <label for="task-input">Task Name</label>
+                            <input type="text" id="task-input" class="form-control" placeholder="Enter a task">
+                        </div>
+                        <div class="form-group">
+                            <label for="task-status">Status</label>
+                            <select id="task-status" class="form-control">
+                                <option>Todo</option>
+                                <option>In Progress</option>
+                                <option>Done</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="end-date">End Date</label>
+                            <input type="date" id="end-date" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Task</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editModalLabel">Edit Task</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="edit-task-form">
+                        <div class="form-group">
+                            <label for="edit-task-input">Task Name</label>
+                            <input type="text" id="edit-task-input" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-task-status">Status</label>
+                            <select id="edit-task-status" class="form-control">
+                                <option>Todo</option>
+                                <option>In Progress</option>
+                                <option>Done</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-end-date">End Date</label>
+                            <input type="date" id="edit-end-date" class="form-control">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" id="save-edit-task" class="btn btn-primary">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        $(function() {
+            $('#expand-add-task').click(function() {
+                $('#addTaskModal').modal('show');
+            });
+
+            $('#add-task-form-inner').on('submit', function(event) {
+                event.preventDefault();
+                addTask();
+                $('#addTaskModal').modal('hide');
+            });
+
+            $('#save-edit-task').click(function() {
+                saveEditTask();
+                $('#editModal').modal('hide');
+            });
+
+            loadTasks();
+        });
+
+        function addTask() {
+            var taskInput = document.getElementById('task-input');
+            var taskStatus = document.getElementById('task-status');
+            var taskEndDate = document.getElementById('end-date');
+            var taskName = taskInput.value.trim();
+            var status = taskStatus.value;
+            var endDate = taskEndDate.value;
+
+            if (taskName && status && endDate) {
+                createTaskElement(taskName, status, new Date(endDate));
+
+                taskInput.value = '';
+                taskStatus.value = 'Todo';
+                taskEndDate.value = '';
+
+                saveTasks();
+            }
+        }
+
+        function createTaskElement(name, status, endDate) {
+            var taskElement = document.createElement('div');
+            taskElement.classList.add('card', 'my-3');
+
+            var badgeColor;
+            var currentDate = new Date();
+            currentDate.setHours(0, 0, 0, 0);
+            endDate.setHours(0, 0, 0, 0);
+
+            if (endDate < currentDate) {
+                badgeColor = '#FF0000'; // Red for delayed tasks
+            } else {
+                switch (status) {
+                    case 'Todo':
+                        badgeColor = '#9fa3f5';
+                        break;
+                    case 'In Progress':
+                        badgeColor = '#f5f29f';
+                        break;
+                    case 'Done':
+                        badgeColor = '#a6f59f';
+                        break;
+                }
+            }
+
+            taskElement.innerHTML = `
+                <div class="card-body">
+                    <h5 class="card-title">${name}</h5>
+                    <p class="card-text">${formatDate(endDate)}</p>
+                    <p class="card-text"><span class="badge" style="background-color:${badgeColor};">${status}</span></p>
+                    <button class="btn-icon btn-edit" aria-label="Edit task"><i class="fas fa-edit"></i></button>
+                    <button class="btn-icon btn-delete" aria-label="Delete task"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            `;
+
+            taskElement.querySelector('.btn-delete').addEventListener('click', function() {
+                taskElement.remove();
+                saveTasks();
+            });
+
+            taskElement.querySelector('.btn-edit').addEventListener('click', function() {
+                selectedTask = taskElement;
+                var editTaskInput = document.getElementById('edit-task-input');
+                var editTaskStatus = document.getElementById('edit-task-status');
+                var editEndDate = document.getElementById('edit-end-date');
+
+                editTaskInput.value = taskElement.querySelector('.card-title').textContent;
+                var taskStatus = taskElement.querySelector('.card-text span.badge').textContent;
+                var endDate = taskElement.querySelector('.card-text:nth-child(2)').textContent;
+                editTaskStatus.value = taskStatus;
+                editEndDate.value = endDate;
+
+                $('#editModal').modal('show');
+            });
+
+            document.getElementById('task-container').appendChild(taskElement);
+        }
+
+        function saveEditTask() {
+            var taskElement = selectedTask;
+            var editTaskInput = document.getElementById('edit-task-input');
+            var editTaskStatus = document.getElementById('edit-task-status');
+            var editEndDate = document.getElementById('edit-end-date');
+            var name = editTaskInput.value.trim();
+            var status = editTaskStatus.value;
+            var endDate = new Date(editEndDate.value);
+
+            taskElement.querySelector('.card-title').textContent = name;
+            taskElement.querySelector('.card-text:nth-child(2)').textContent = formatDate(endDate);
+            taskElement.querySelector('.card-text span.badge').textContent = status;
+
+            saveTasks();
+        }
+
+        function saveTasks() {
+            var tasks = Array.from(document.getElementById('task-container').children).map(function(taskElement) {
+                var name = taskElement.querySelector('.card-title').textContent;
+                var endDate = taskElement.querySelector('.card-text:nth-child(2)').textContent;
+                var status = taskElement.querySelector('.card-text span.badge').textContent;
+
+                return { name, status, endDate };
+            });
+
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
+
+        function loadTasks() {
+            var tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            tasks.forEach(function(task) {
+                createTaskElement(task.name, task.status, new Date(task.endDate));
+            });
+        }
+
+        function formatDate(date) {
+            var options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(date).toLocaleDateString('en-US', options);
+        }
+
+    </script>
+</body>
+</html>
